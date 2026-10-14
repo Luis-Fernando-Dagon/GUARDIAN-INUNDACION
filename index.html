@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guardián de inundación</title>
+<meta name="description" content="Alerta comunitaria de crecida: nivel del agua en la casa, estado por cuadrante y registro de avisos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EAF0F3; --surf:#FFFFFF; --surf2:#F4F8FA; --ink:#0E2433; --muted:#4A6272; --line:#C5D3DB;
+  --agua:#1B87A8; --agua-soft:#D3EBF3; --focus:#0B5CAD;
+  --s0:#1F7A47; --f0:#FFFFFF;
+  --s1:#F2B705; --f1:#1A1400;
+  --s2:#F08A24; --f2:#1A1000;
+  --s3:#C62828; --f3:#FFFFFF;
+  --s4:#7E1D4A; --f4:#FFFFFF;
+  --sd:#8497A3; --fd:#0E2433;
+  --wall:#DCE5EA; --wall-line:#C6D3DA; --door:#B98B5E; --door-dark:#9D7248; --ground:#8A9AA3; --base:#F7FAFB;
+  --water:rgba(27,135,168,.62); --water-top:#7FD0E8;
+  --shadow:0 1px 0 rgba(14,36,51,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#08141C; --surf:#0F2430; --surf2:#0B1D27; --ink:#E7F0F4; --muted:#9FB6C3; --line:#26414F;
+    --agua:#4FB7D6; --agua-soft:#12384A; --focus:#7DB8FF;
+    --s0:#3FBF78; --f0:#04210F; --s1:#F2C230; --f1:#1A1400; --s2:#F59A3C; --f2:#1A1000;
+    --s3:#EE5A5F; --f3:#1F0507; --s4:#C94D86; --f4:#FFFFFF; --sd:#5B7686; --fd:#E7F0F4;
+    --wall:#18323F; --wall-line:#21404F; --door:#7A5A3C; --door-dark:#5F4529; --ground:#36505E; --base:#233F4D;
+    --water:rgba(79,183,214,.55); --water-top:#9BE0F2;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#08141C; --surf:#0F2430; --surf2:#0B1D27; --ink:#E7F0F4; --muted:#9FB6C3; --line:#26414F;
+  --agua:#4FB7D6; --agua-soft:#12384A; --focus:#7DB8FF;
+  --s0:#3FBF78; --f0:#04210F; --s1:#F2C230; --f1:#1A1400; --s2:#F59A3C; --f2:#1A1000;
+  --s3:#EE5A5F; --f3:#1F0507; --s4:#C94D86; --f4:#FFFFFF; --sd:#5B7686; --fd:#E7F0F4;
+  --wall:#18323F; --wall-line:#21404F; --door:#7A5A3C; --door-dark:#5F4529; --ground:#36505E; --base:#233F4D;
+  --water:rgba(79,183,214,.55); --water-top:#9BE0F2;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:17px;line-height:1.5;padding-bottom:84px}
+h1,h2,h3,p{margin:0}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.skip{position:absolute;left:-999px;top:8px;background:var(--surf);padding:8px 12px;border-radius:6px;z-index:50}
+.skip:focus{left:8px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+.num{font-variant-numeric:tabular-nums}
+
+/* barra superior */
+.top{background:var(--surf);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-top:14px;padding-bottom:14px}
+.brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+.brand svg{flex:none}
+.brand h1{font-size:1.25rem;line-height:1.2;font-weight:700}
+.brand p{font-size:.9rem;color:var(--muted)}
+.tabs{display:flex;gap:4px;background:var(--surf2);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tab{border:0;background:transparent;padding:8px 18px;border-radius:7px;cursor:pointer;font-weight:700;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--surf)}
+.themebtn{border:1px solid var(--line);background:var(--surf2);border-radius:10px;padding:8px 12px;cursor:pointer}
+
+/* demo */
+.demo{background:var(--agua-soft);border-bottom:1px solid var(--line)}
+.demo .wrap{padding-top:12px;padding-bottom:12px;display:grid;gap:8px}
+.demo-head{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
+.demo-head strong{font-size:1rem}
+.demo-head span{color:var(--muted);font-size:.92rem}
+.demo-controls{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;font-size:.95rem}
+.demo-controls label{display:flex;align-items:center;gap:8px}
+.demo-controls input[type=range]{width:min(260px,60vw);accent-color:var(--agua)}
+.demo-controls select{background:var(--surf);border:1px solid var(--line);border-radius:6px;padding:4px 8px}
+.btn{border:1px solid var(--line);background:var(--surf);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700}
+.btn:hover{border-color:var(--ink)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.ok{background:var(--s0);color:var(--f0);border-color:transparent}
+.btn.alt{background:var(--ink);color:var(--surf);border-color:transparent}
+.msg{font-size:.92rem;min-height:1.2em}
+
+main{padding-top:26px}
+.view[hidden]{display:none}
+
+/* vista casa */
+.casa{display:grid;gap:26px 40px;grid-template-columns:1fr;grid-template-areas:"status" "gauge" "datos" "resp"}
+@media (min-width:900px){
+  .casa{grid-template-columns:minmax(380px,6fr) 6fr;grid-template-areas:"gauge status" "gauge datos" "gauge resp";align-items:start}
+}
+.a-status{grid-area:status}.a-gauge{grid-area:gauge}
+@media (min-width:900px){.a-gauge{position:sticky;top:14px}}.a-datos{grid-area:datos}.a-resp{grid-area:resp}
+
+.estado{border-left:12px solid var(--sc,var(--sd));background:var(--surf);padding:16px 20px 18px;border-radius:0 12px 12px 0;box-shadow:var(--shadow);border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.estado .tag{display:inline-block;background:var(--sc,var(--sd));color:var(--fc,var(--fd));font-weight:700;font-size:.95rem;border-radius:999px;padding:2px 12px;margin-bottom:8px}
+.estado h2{font-size:clamp(1.6rem,4.2vw,2.5rem);line-height:1.12;font-weight:700;letter-spacing:-.01em}
+.estado p{margin-top:8px;font-size:1.05rem;color:var(--ink);max-width:60ch}
+.aviso-off{margin-top:12px;background:var(--surf2);border:2px dashed var(--s3);padding:10px 14px;border-radius:8px;font-weight:700}
+.aviso-off[hidden]{display:none}
+
+.gauge-fig{margin:0;background:var(--surf);border:1px solid var(--line);border-radius:14px;padding:12px 12px 14px}
+.gauge-fig svg{display:block;width:100%;height:auto}
+.gauge-fig figcaption{font-size:.88rem;color:var(--muted);margin-top:8px;max-width:52ch}
+
+dl.datos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0;border-top:1px solid var(--line)}
+@media (min-width:560px){dl.datos{grid-template-columns:repeat(4,minmax(0,1fr))}}
+dl.datos>div{padding:12px 12px 12px 0;border-bottom:1px solid var(--line)}
+dl.datos dt{font-size:.88rem;color:var(--muted)}
+dl.datos dd{margin:2px 0 0;font-size:1.5rem;font-weight:700;line-height:1.2}
+dl.datos dd small{font-size:.9rem;font-weight:400;color:var(--muted)}
+dl.datos dd.chico{font-size:1.1rem}
+
+.cron-fila{display:grid;gap:16px;grid-template-columns:1fr;margin-top:18px}
+@media (min-width:560px){.cron-fila{grid-template-columns:230px 1fr;align-items:center}}
+.cron h3,.panel h3{font-size:1rem;font-weight:700}
+.cron .sub{font-size:.9rem;color:var(--muted)}
+.cron svg{display:block;width:100%;max-width:230px;height:auto;margin-top:4px}
+.arc-track{stroke:var(--line);fill:none;stroke-width:16;stroke-linecap:round}
+.arc-prog{fill:none;stroke-width:16;stroke-linecap:round;transition:stroke-dasharray .6s ease,stroke .3s}
+.cron-t{font-weight:700;font-size:27px;fill:var(--ink);text-anchor:middle}
+.cron-l{font-size:12.5px;fill:var(--muted);text-anchor:middle}
+.alarma-box{border:1px solid var(--line);background:var(--surf);border-radius:12px;padding:14px 16px;display:grid;gap:10px}
+.alarma-box .linea{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.alarma-box .tono{font-weight:700}
+.alarma-box .btns{display:flex;gap:8px;flex-wrap:wrap}
+
+.panel{border-top:1px solid var(--line);padding-top:16px}
+.panel .ayuda{font-size:.95rem;color:var(--muted);margin-top:4px;max-width:62ch}
+.resp-btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.resp-btns .btn{min-height:48px}
+.resp-btns .btn[aria-pressed="true"]{background:var(--ink);color:var(--surf);border-color:transparent}
+.resp-estado{margin-top:12px;font-weight:700}
+.nota-911{margin-top:10px;padding:10px 14px;border-left:6px solid var(--s3);background:var(--surf);border-radius:0 8px 8px 0;font-weight:700}
+.nota-911[hidden]{display:none}
+.camino{margin-top:10px;padding:10px 14px;border-left:6px solid var(--s0);background:var(--surf);border-radius:0 8px 8px 0;font-weight:700}
+.camino[hidden]{display:none}
+
+.hist{margin-top:34px;border-top:1px solid var(--line);padding-top:18px}
+.hist h2,.sec h2{font-size:1.25rem;font-weight:700}
+.hist .sub,.sec .sub{color:var(--muted);font-size:.95rem;margin-top:2px}
+#grafico{margin-top:10px;width:100%}
+#grafico svg{display:block}
+.leyenda{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:.92rem}
+.leyenda span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid rgba(0,0,0,.25)}
+.d0{background:var(--s0)}.d1{background:var(--s1)}.d2{background:var(--s2)}.d3{background:var(--s3)}.d4{background:var(--s4)}.dd{background:var(--sd)}
+
+/* vista operador */
+.oper{display:grid;gap:28px 40px;grid-template-columns:1fr}
+@media (min-width:900px){.oper{grid-template-columns:minmax(320px,5fr) 7fr;align-items:start}}
+.sec h2{margin-bottom:2px}
+.modo{display:inline-flex;margin-top:10px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.modo button{border:0;background:var(--surf);padding:7px 14px;cursor:pointer;font-weight:700;color:var(--muted)}
+.modo button[aria-pressed="true"]{background:var(--ink);color:var(--surf)}
+.mapa{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.celda{position:relative;aspect-ratio:1/1;border:3px solid transparent;border-radius:10px;cursor:pointer;display:grid;place-items:center;background:var(--sd);color:var(--fd)}
+.celda .num{font-size:clamp(1.5rem,4.4vw,2.1rem);font-weight:700;line-height:1}
+.celda.s0{background:var(--s0);color:var(--f0)}.celda.s1{background:var(--s1);color:var(--f1)}.celda.s2{background:var(--s2);color:var(--f2)}
+.celda.s3{background:var(--s3);color:var(--f3)}.celda.s4{background:var(--s4);color:var(--f4)}
+.celda.nd{background:repeating-linear-gradient(135deg,var(--surf2) 0 8px,var(--line) 8px 9px);color:var(--muted)}
+.celda[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 3px var(--surf),0 0 0 6px var(--ink)}
+.badge{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.badge svg{width:16px;height:16px}
+.flag-e path.f{fill:#C62828}.flag-a path.f{fill:#E36A00}
+.flag path.p{stroke:#222;stroke-width:1.6;fill:none;stroke-linecap:round}
+.mapa-nota{margin-top:10px;font-size:.9rem;color:var(--muted);max-width:54ch}
+.mapa-leyenda{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:.9rem}
+.mapa-leyenda span{display:inline-flex;align-items:center;gap:6px}
+
+.rank{list-style:none;margin:12px 0 0;padding:0;border-top:1px solid var(--line)}
+.rank li{border-bottom:1px solid var(--line)}
+.rank button{width:100%;text-align:left;background:transparent;border:0;padding:12px 6px;cursor:pointer;display:grid;grid-template-columns:44px 1fr auto;gap:4px 12px;align-items:center}
+.rank button:hover,.rank button[aria-current="true"]{background:var(--surf)}
+.rank .zn{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:1.2rem;background:var(--sd);color:var(--fd)}
+.rank .zn.s0{background:var(--s0);color:var(--f0)}.rank .zn.s1{background:var(--s1);color:var(--f1)}.rank .zn.s2{background:var(--s2);color:var(--f2)}.rank .zn.s3{background:var(--s3);color:var(--f3)}.rank .zn.s4{background:var(--s4);color:var(--f4)}
+.rank .t1{font-weight:700}
+.rank .t2{font-size:.9rem;color:var(--muted)}
+.rank .pedido{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:.95rem}
+.rank .pedido svg{width:18px;height:18px}
+.rank .vacio{padding:14px 6px;color:var(--muted)}
+
+.detalle{margin-top:18px;border:1px solid var(--line);background:var(--surf);border-radius:12px;padding:16px}
+.detalle h3{font-size:1.1rem}
+.detalle p{margin-top:4px}
+.detalle form{display:grid;gap:10px;margin-top:12px}
+@media (min-width:560px){.detalle form{grid-template-columns:1fr 1fr}.detalle form .full{grid-column:1/-1}}
+.detalle label{display:grid;gap:4px;font-size:.92rem;color:var(--muted)}
+.detalle input,.detalle select{background:var(--surf2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--ink)}
+.detalle .acciones{display:flex;gap:10px;flex-wrap:wrap}
+.err{color:var(--s3);font-weight:700;min-height:1.2em}
+.ok-box{margin-top:10px;padding:10px 14px;border-left:6px solid var(--s0);background:var(--surf2);border-radius:0 8px 8px 0;font-weight:700}
+
+.registro{grid-column:1/-1;border-top:1px solid var(--line);padding-top:18px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{border:1px solid var(--line);background:var(--surf);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:700;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surf);border-color:transparent}
+.tabla-wrap{margin-top:12px;max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--surf)}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{position:sticky;top:0;background:var(--surf2);font-size:.88rem;color:var(--muted);font-weight:700}
+td.hora{white-space:nowrap}
+.pill{display:inline-block;border-radius:999px;padding:1px 10px;font-weight:700;font-size:.88rem}
+.pill.s1{background:var(--s1);color:var(--f1)}.pill.s2{background:var(--s2);color:var(--f2)}.pill.s3{background:var(--s3);color:var(--f3)}.pill.s4{background:var(--s4);color:var(--f4)}
+.pill.pedido{background:var(--ink);color:var(--surf)}.pill.ayuda{background:var(--s0);color:var(--f0)}
+.privacidad{margin-top:14px;font-size:.9rem;color:var(--muted);max-width:80ch}
+
+/* barra de emergencias */
+.emerg{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:var(--surf);z-index:40}
+.emerg .wrap{display:flex;gap:10px 18px;align-items:center;flex-wrap:wrap;padding-top:10px;padding-bottom:10px}
+.emerg p{font-size:.92rem;margin-right:auto;max-width:48ch}
+.emerg a{color:var(--surf);background:var(--s3);color:var(--f3);text-decoration:none;font-weight:700;padding:8px 14px;border-radius:8px;white-space:nowrap}
+.emerg a.sec2{background:transparent;border:1px solid currentColor;color:var(--surf)}
+@media (max-width:640px){
+  .emerg p{display:none}
+  .emerg .wrap{flex-wrap:nowrap;gap:8px;padding-top:8px;padding-bottom:8px}
+  .emerg a{flex:1;text-align:center;padding:10px 6px;font-size:.88rem;white-space:normal;line-height:1.2}
+  body{padding-bottom:70px}
+}
+.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:var(--surf);padding:10px 16px;border-radius:10px;font-weight:700;z-index:60;max-width:92vw;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+.toast[hidden]{display:none}
+
+/* SVG casa */
+.wave{animation:ola 4s linear infinite}
+@keyframes ola{from{transform:translateX(0)}to{transform:translateX(80px)}}
+#agua{transition:transform 1.1s cubic-bezier(.3,.7,.3,1)}
+.svg-wall{fill:var(--wall)}.svg-wallline{stroke:var(--wall-line);stroke-width:1.5}
+.svg-door{fill:var(--door)}.svg-panel{fill:var(--door-dark);opacity:.35;stroke:var(--door-dark);stroke-width:2}
+.svg-ground{fill:var(--ground)}.svg-base{fill:var(--base);stroke:var(--wall-line)}
+.svg-tick{stroke:var(--ink);opacity:.35;stroke-width:1.5}
+.svg-ticklbl{font-size:13px;fill:var(--ink);opacity:.55;text-anchor:end}
+.svg-lbl-n{font-size:28px;font-weight:700}
+.svg-lbl-t{font-size:22px;fill:var(--ink)}
+.svg-pill{fill:var(--ink)}
+.svg-pilltxt{fill:var(--surf);font-size:22px;font-weight:700;text-anchor:middle}
+.svg-handle{fill:var(--wall)}
+@media (prefers-reduced-motion:reduce){
+  .wave{animation:none}#agua{transition:none}.arc-prog{transition:none}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Ir al contenido</a>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="3" y="3" width="34" height="34" rx="9" fill="var(--ink)"/>
+        <path d="M9 22c3-3 5 3 8 0s5 3 8 0 4 2 6 0" fill="none" stroke="#7FD0E8" stroke-width="3" stroke-linecap="round"/>
+        <path d="M9 29c3-3 5 3 8 0s5 3 8 0 4 2 6 0" fill="none" stroke="#1B87A8" stroke-width="3" stroke-linecap="round"/>
+        <rect x="15" y="9" width="10" height="8" rx="1.5" fill="none" stroke="var(--surf)" stroke-width="2.4"/>
+      </svg>
+      <div>
+        <h1>Guardián de inundación</h1>
+        <p>Nodo 1, cuadrante 5</p>
+      </div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Vista">
+      <button class="tab" role="tab" id="tabCasa" aria-selected="true" aria-controls="vistaCasa">Mi casa</button>
+      <button class="tab" role="tab" id="tabOper" aria-selected="false" aria-controls="vistaOper">Operador</button>
+    </div>
+    <button class="themebtn" id="btnTema" aria-pressed="false">Modo oscuro</button>
+  </div>
+</header>
+
+<section class="demo" aria-label="Panel de la demo">
+  <div class="wrap">
+    <div class="demo-head">
+      <strong>Demo con datos simulados</strong>
+      <span>Una noche de tormenta, 3 horas y media. Solo el cuadrante 5 es el nodo real; los otros 11 son simulados.</span>
+    </div>
+    <div class="demo-controls">
+      <button class="btn" id="btnPlay">Pausar</button>
+      <label>Hora <input type="range" id="scrub" min="0" max="210" step="1" value="40"> <output id="scrubOut" class="num">02:10</output></label>
+      <label>Velocidad
+        <select id="speed"><option value="1">1 min por segundo</option><option value="3" selected>3 min por segundo</option><option value="6">6 min por segundo</option></select>
+      </label>
+      <label><input type="checkbox" id="offline"> Simular nodo sin conexión</label>
+      <label>Datos
+        <select id="fuente"><option value="demo" selected>Demo</option><option value="live">Canal ThingSpeak 3533124</option></select>
+      </label>
+    </div>
+    <p class="msg" id="srcMsg" role="status"></p>
+  </div>
+</section>
+
+<main id="main">
+<div class="wrap">
+
+<!-- ====== MI CASA ====== -->
+<section class="view" id="vistaCasa" role="tabpanel" aria-labelledby="tabCasa">
+  <div class="casa">
+    <div class="a-status">
+      <div class="estado" id="estado" aria-live="polite">
+        <span class="tag" id="estTag">Seguro</span>
+        <h2 id="estTitulo">Seguro</h2>
+        <p id="estDet">No hay agua en el piso.</p>
+        <div class="aviso-off" id="avisoOff" hidden></div>
+      </div>
+    </div>
+
+    <div class="a-gauge">
+      <figure class="gauge-fig">
+        <svg id="casaSvg" viewBox="0 0 690 500" role="img" aria-label="Nivel del agua">
+          <defs>
+            <clipPath id="clipAgua"><rect x="0" y="0" width="430" height="450"/></clipPath>
+            <linearGradient id="fadeTop" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--wall)" stop-opacity="1"/><stop offset="1" stop-color="var(--wall)" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <rect class="svg-wall" x="0" y="0" width="430" height="450"/>
+          <g class="svg-wallline">
+            <line x1="0" y1="110" x2="56" y2="110"/><line x1="0" y1="190" x2="56" y2="190"/><line x1="0" y1="270" x2="56" y2="270"/><line x1="0" y1="350" x2="56" y2="350"/>
+            <line x1="416" y1="110" x2="430" y2="110"/><line x1="416" y1="190" x2="430" y2="190"/><line x1="416" y1="270" x2="430" y2="270"/><line x1="416" y1="350" x2="430" y2="350"/>
+          </g>
+          <!-- puerta de 90 cm de ancho, se ve el primer metro -->
+          <rect class="svg-door" x="56" y="50" width="360" height="400"/>
+          <rect class="svg-panel" x="84" y="74" width="262" height="140" rx="4"/>
+          <rect class="svg-panel" x="84" y="250" width="262" height="170" rx="4"/>
+          <rect class="svg-handle" x="366" y="56" width="12" height="44" rx="5"/>
+          <!-- zócalo (10 cm) y tomacorriente (a 30 cm) -->
+          <rect class="svg-base" x="0" y="410" width="56" height="40"/>
+          <rect class="svg-base" x="416" y="410" width="14" height="40"/>
+          <g>
+            <title>Tomacorriente a 30 cm del piso</title>
+            <rect x="12" y="302" width="32" height="28" rx="5" fill="var(--base)" stroke="var(--wall-line)" stroke-width="2"/>
+            <circle cx="22" cy="316" r="2.6" fill="var(--ink)" opacity=".7"/><circle cx="34" cy="316" r="2.6" fill="var(--ink)" opacity=".7"/>
+          </g>
+          <g id="ticks"></g>
+          <rect x="0" y="0" width="430" height="60" fill="url(#fadeTop)" opacity=".85"/>
+          <g clip-path="url(#clipAgua)">
+            <g id="agua" style="transform:translateY(450px)">
+              <g class="wave"><path id="olaPath" fill="var(--water)" stroke="var(--water-top)" stroke-width="3"/></g>
+              <g id="pillNivel"><rect class="svg-pill" x="292" y="-42" width="104" height="30" rx="15"/><text class="svg-pilltxt" id="pillTxt" x="344" y="-21">0 cm</text></g>
+            </g>
+          </g>
+          <g id="umbrales"></g>
+          <rect class="svg-ground" x="0" y="450" width="690" height="50"/>
+        </svg>
+        <figcaption>Puerta de 90 × 200 cm a escala: se ve el primer metro. El zócalo mide 10 cm y el tomacorriente está a 30 cm del piso.</figcaption>
+      </figure>
+    </div>
+
+    <div class="a-datos">
+      <dl class="datos">
+        <div><dt>Nivel del agua</dt><dd class="num" id="dNivel">0 <small>cm</small></dd></div>
+        <div><dt>Velocidad</dt><dd class="num" id="dVel">0 <small>cm/min</small></dd></div>
+        <div><dt>Tendencia</dt><dd id="dTend">Estable</dd></div>
+        <div><dt>Última lectura</dt><dd class="chico num" id="dLect">--:--</dd></div>
+      </dl>
+
+      <div class="cron-fila">
+        <div class="cron">
+          <h3 id="cronTitulo">Próximo nivel</h3>
+          <p class="sub" id="cronSub">Estimación según la velocidad actual</p>
+          <svg viewBox="0 0 220 130" role="img" id="cronSvg" aria-label="Tiempo estimado hasta el próximo nivel">
+            <path class="arc-track" pathLength="100" d="M22 112 A88 88 0 0 1 198 112"/>
+            <path class="arc-prog" id="arcProg" pathLength="100" d="M22 112 A88 88 0 0 1 198 112" stroke-dasharray="0 100"/>
+            <text class="cron-t" id="cronT" x="110" y="96">Estable</text>
+            <text class="cron-l" id="cronL" x="110" y="118">sin subida</text>
+          </svg>
+        </div>
+        <div class="alarma-box">
+          <div class="linea"><strong>Alarma de la casa:</strong> <span class="tono" id="tonoTxt">Silencio</span></div>
+          <p class="sub" id="tonoNota" style="font-size:.9rem;color:var(--muted)">De noche, cada nivel suena un escalón más fuerte que de día.</p>
+          <div class="btns">
+            <button class="btn" id="btnSilenciar">Silenciar alarma</button>
+            <button class="btn" id="btnProbar">Probar alarma</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="a-resp">
+      <div class="panel" id="panelResp">
+        <h3>¿Cómo está tu familia?</h3>
+        <p class="ayuda" id="respAyuda">Estos botones se habilitan cuando el agua llega al nivel de alerta (15 cm) y solo se registran durante el temporal. Fuera de la emergencia nadie puede saber si hay alguien en la casa.</p>
+        <div class="resp-btns" role="group" aria-label="Respuesta de la familia">
+          <button class="btn" data-resp="1" aria-pressed="false">Estamos bien</button>
+          <button class="btn" data-resp="2" aria-pressed="false">Necesitamos asistencia</button>
+          <button class="btn" data-resp="3" aria-pressed="false">Queremos evacuar</button>
+        </div>
+        <p class="resp-estado" id="respEstado"></p>
+        <p class="nota-911" id="nota911" hidden>Llamá ahora al 911. Este aviso llega al delegado, pero nadie está mirando la pantalla las 24 horas.</p>
+        <p class="camino" id="caminoMsg" hidden></p>
+      </div>
+    </div>
+  </div>
+
+  <section class="hist" aria-labelledby="histH">
+    <h2 id="histH">Cómo subió el agua</h2>
+    <p class="sub">Nivel del nodo a lo largo de la noche. La velocidad de subida aparece junto al último punto.</p>
+    <div id="grafico"></div>
+    <div class="leyenda" id="leyendaGraf"></div>
+  </section>
+</section>
+
+<!-- ====== OPERADOR ====== -->
+<section class="view" id="vistaOper" role="tabpanel" aria-labelledby="tabOper" hidden>
+  <div class="oper">
+    <div class="sec">
+      <h2>Cuadrantes</h2>
+      <p class="sub">Solo se muestra el número de cada cuadrante, nunca una dirección.</p>
+      <div class="modo" role="group" aria-label="Qué mostrar en el mapa">
+        <button id="modoAhora" aria-pressed="true">Ahora</button>
+        <button id="modoMax" aria-pressed="false">Máximo alcanzado</button>
+      </div>
+      <div class="mapa" id="mapa"></div>
+      <div class="mapa-leyenda" id="mapaLeyenda"></div>
+      <p class="mapa-nota">Con "Máximo alcanzado" ves cómo fue avanzando cada nivel durante la noche, aunque el agua ya haya bajado.</p>
+    </div>
+
+    <div class="sec">
+      <h2>Prioridad de atención</h2>
+      <p class="sub">Primero quienes piden evacuar, después quienes piden asistencia, y luego por nivel y velocidad de subida.</p>
+      <ul class="rank" id="rank"></ul>
+      <div class="detalle" id="detalle"></div>
+    </div>
+
+    <section class="registro" aria-labelledby="regH">
+      <h2 id="regH" style="font-size:1.25rem">Registro de avisos</h2>
+      <p class="sub" style="color:var(--muted);font-size:.95rem">Cada vez que un cuadrante alcanza un nivel queda anotado con la hora y a quién se avisó.</p>
+      <div class="chips" id="chips" role="group" aria-label="Filtrar el registro"></div>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th scope="col">Hora</th><th scope="col">Cuadrante</th><th scope="col">Evento</th><th scope="col">Se avisó a</th></tr></thead>
+          <tbody id="regBody"></tbody>
+        </table>
+      </div>
+      <p class="privacidad">En esta demo los cuadrantes 1 a 12 son simulados. Los pedidos de asistencia y evacuación no se publican en la vista de la casa. En un uso real irían por un canal privado con inicio de sesión, y la lista de contactos de cada familia no la vería el delegado.</p>
+    </section>
+  </div>
+</section>
+
+</div>
+</main>
+
+<div class="emerg" role="region" aria-label="Teléfonos de emergencia">
+  <div class="wrap">
+    <p>Si hay peligro, llamá primero. Esta página no reemplaza una llamada de emergencia.</p>
+    <a href="tel:911">Emergencias 911</a>
+    <a class="sec2" href="tel:103">Defensa Civil 103</a>
+    <a class="sec2" href="tel:100">Bomberos 100</a>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ========== configuración ========== */
+const CONFIG = { channelId:'3533124', readKey:'', results:80 };
+const UMBRALES = [5,15,30,60];                   // aviso, alerta, peligro, evacuación (cm)
+const SUBIDA_RAPIDA = 3.0;                       // cm/min: sube un escalón
+const SC = 4, FLOOR = 450;                        // escala del dibujo: 4 px por cm
+
+const ESTADOS = [
+  {nombre:'Seguro',     msg:'Seguro',                                     det:'No hay agua en el piso.'},
+  {nombre:'Aviso',      msg:'Atención: está entrando agua',               det:'El agua llegó a 5 cm. Mirá el piso y preparate para subir lo importante.'},
+  {nombre:'Alerta',     msg:'Alerta: preparate',                          det:'El agua llegó a 15 cm. Subí lo que puedas y avisá a tu familia.'},
+  {nombre:'Peligro',    msg:'Peligro: el agua llegó a los tomacorrientes', det:'Cortá la luz solo desde un lugar seco. No pises agua si hay electricidad cerca.'},
+  {nombre:'Evacuación', msg:'Evacuación recomendada',                     det:'Considerá evacuar. Llamá al 911: la decisión es tuya y de Defensa Civil.'}
+];
+const TONOS = ['Silencio','Pitido suave','Sonido medio','Sirena','Sirena rápida'];
+const AVISOS = ['Familia','Familia','Familia y delegado','Familia, delegado y operador'];
+const RESP_TXT = {0:'Sin respuesta',1:'Dijo que está bien',2:'Pide asistencia',3:'Pide evacuar'};
+
+/* ========== simulación de la noche de tormenta ========== */
+const T_MAX = 210;
+const DEMO_BASE = Date.UTC(2026,10,5,4,30);       // 01:30 hora argentina
+const KEY = [[0,0],[20,0],[30,6],[50,14],[60,19],[85,31],[100,42],[125,61],[150,70],[175,40],[210,3]];
+const ZONAS = {1:{f:.30,lag:15},2:{f:.60,lag:10},3:{f:.15,lag:0},4:{f:.90,lag:5},5:{f:1.0,lag:0},6:{f:.50,lag:20},
+               7:{f:1.10,lag:8},8:{f:.40,lag:12},9:{f:1.30,lag:0},10:{f:.20,lag:6},11:{f:.70,lag:18},12:{f:.05,lag:25}};
+const ZIDS = Object.keys(ZONAS).map(Number);
+const RESP_SIM = {4:{tipo:1,desde:2,delay:8}, 7:{tipo:2,desde:2,delay:10}, 9:{tipo:3,desde:3,delay:6}};
+
+function base(t){
+  if(t<=KEY[0][0]) return KEY[0][1];
+  for(let i=1;i<KEY.length;i++){
+    if(t<=KEY[i][0]){ const [t0,v0]=KEY[i-1],[t1,v1]=KEY[i]; return v0+(v1-v0)*(t-t0)/(t1-t0); }
+  }
+  return KEY[KEY.length-1][1];
+}
+function nivelZona(z,t){
+  const c=ZONAS[z]; let v=c.f*base(t-c.lag);
+  if(v>0.6) v+=0.35*Math.sin(t*1.7+z);
+  return Math.max(0,v);
+}
+function velZona(z,t){ const t0=Math.max(0,t-3); return t===t0?0:(nivelZona(z,t)-nivelZona(z,t0))/(t-t0); }
+function estadoDe(n,v){
+  let e=0; for(let i=0;i<4;i++) if(n>=UMBRALES[i]) e=i+1;
+  if(e>=1&&e<4&&v>=SUBIDA_RAPIDA) e++;
+  return e;
+}
+
+const reach={}, firstState={}, tResp={};
+ZIDS.forEach(z=>{
+  reach[z]=[null,null,null,null]; firstState[z]=[0,null,null,null,null];
+  for(let t=0;t<=T_MAX;t+=0.5){
+    const n=nivelZona(z,t), e=estadoDe(n,velZona(z,t));
+    UMBRALES.forEach((u,i)=>{ if(reach[z][i]===null&&n>=u) reach[z][i]=t; });
+    for(let k=1;k<=4;k++) if(firstState[z][k]===null&&e>=k) firstState[z][k]=t;
+  }
+  const r=RESP_SIM[z];
+  if(r&&firstState[z][r.desde]!==null) tResp[z]=firstState[z][r.desde]+r.delay;
+});
+
+/* ========== estado de la aplicación ========== */
+const S = {
+  vista:'casa', fuente:'demo', T:40, play:true, speed:3, offline:false, sel:5, modoMapa:'ahora', filtro:'todos',
+  userResp:0, userRespMs:0, silencioHasta:-1, lastE:0, asign:{}, live:null, sigDetalle:''
+};
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+const fmt1 = n=>n.toFixed(1).replace('.',',');
+const fmt0 = n=>Math.round(n).toString();
+const horaFmt = new Intl.DateTimeFormat('es-AR',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'America/Argentina/Buenos_Aires'});
+const fmtHora = ms=>horaFmt.format(ms);
+const esc = s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nowMs = ()=> S.fuente==='demo' ? DEMO_BASE+S.T*60000 : Date.now();
+
+function getZona(z){
+  if(S.fuente==='demo'){
+    const n=nivelZona(z,S.T), v=velZona(z,S.T), e=estadoDe(n,v);
+    let resp=0;
+    if(z===5){ resp = e>=1 ? S.userResp : 0; }
+    else if(RESP_SIM[z] && tResp[z]!==undefined && S.T>=tResp[z] && e>=1) resp=RESP_SIM[z].tipo;
+    return {nivel:n,vel:v,estado:e,resp,ms:DEMO_BASE+S.T*60000};
+  }
+  if(z===5 && S.live) return {nivel:S.live.nivel,vel:S.live.vel,estado:S.live.estado,resp:S.live.resp,ms:S.live.ms};
+  return null;
+}
+function maxEstado(z){
+  if(S.fuente!=='demo'){ const g=getZona(z); return g?g.estado:null; }
+  let m=0; for(let t=0;t<=Math.floor(S.T);t+=1){ m=Math.max(m,estadoDe(nivelZona(z,t),velZona(z,t))); }
+  return Math.max(m,estadoDe(nivelZona(z,S.T),velZona(z,S.T)));
+}
+function esNoche(ms){ const h=parseInt(fmtHora(ms).slice(0,2),10); return h>=22||h<7; }
+function estaOffline(){
+  if(S.fuente==='demo') return S.offline;
+  return !S.live || (Date.now()-S.live.ms)/60000>3;
+}
+
+/* ========== dibujo de la casa ========== */
+function buildCasa(){
+  let w='M-80 0'; for(let i=0;i<9;i++) w+=' q20 -7 40 0 t40 0'; w+=' V80 H-80 Z';
+  $('#olaPath').setAttribute('d',w);
+  let tk='';
+  for(let i=1;i<=9;i++){
+    const y=FLOOR-i*10*SC;
+    tk+=`<line class="svg-tick" x1="416" x2="402" y1="${y}" y2="${y}"/>`;
+    if(i%2===0||i===1) tk+=`<text class="svg-ticklbl" x="398" y="${y+4.5}">${i*10}</text>`;
+  }
+  $('#ticks').innerHTML=tk;
+  const cls=['s1','s2','s3','s4'];
+  let um='';
+  UMBRALES.forEach((u,i)=>{
+    const y=FLOOR-u*SC;
+    um+=`<line x1="0" x2="434" y1="${y}" y2="${y}" stroke="var(--${cls[i]})" stroke-width="3" stroke-dasharray="10 6"/>`;
+    um+=`<rect x="438" y="${y-14}" width="14" height="28" rx="4" fill="var(--${cls[i]})"/>`;
+    um+=`<text x="460" y="${y+8}"><tspan class="svg-lbl-n" fill="var(--ink)">${u} cm</tspan><tspan class="svg-lbl-t" dx="8">${ESTADOS[i+1].nombre}</tspan></text>`;
+  });
+  $('#umbrales').innerHTML=um;
+}
+
+/* ========== render: mi casa ========== */
+function renderCasa(){
+  const g=getZona(5), off=estaOffline();
+  const ms = g?g.ms:nowMs();
+  const e = g?g.estado:0;
+  const col = g? (off?'sd':'s'+e) : 'sd';
+  const est=$('#estado');
+  est.style.setProperty('--sc',`var(--${col==='sd'?'sd':col})`);
+  est.style.setProperty('--fc',`var(--f${col==='sd'?'d':e})`);
+  $('#estTag').textContent = g? (off?'Sin conexión':ESTADOS[e].nombre) : 'Sin datos';
+  $('#estTitulo').textContent = g? (off?'No hay datos nuevos del nodo':ESTADOS[e].msg) : 'Todavía no hay lecturas';
+  $('#estDet').textContent = g? (off?'Este es el último valor recibido. Un nodo sin conexión no significa que esté todo seguro: mirá el piso.':ESTADOS[e].det) : 'Cuando el nodo envíe su primera lectura al canal, vas a verla acá.';
+  const ao=$('#avisoOff');
+  if(g&&off){ ao.hidden=false; ao.textContent=`Sin conexión con el nodo. Última lectura a las ${fmtHora(ms)}.`; } else ao.hidden=true;
+
+  const n=g?g.nivel:0, v=g?g.vel:0;
+  const ny=FLOOR-Math.min(100,n)*SC;
+  $('#agua').style.transform=`translateY(${ny}px)`;
+  $('#pillTxt').textContent=`${fmt0(n)} cm`;
+  $('#casaSvg').setAttribute('aria-label',`Nivel del agua: ${fmt0(n)} centímetros sobre el piso`);
+
+  $('#dNivel').innerHTML=`${fmt1(n)} <small>cm</small>`;
+  $('#dVel').innerHTML=`${(v>=0?'+':'')+fmt1(v)} <small>cm/min</small>`;
+  $('#dTend').textContent = v>=0.3?'Subiendo':(v<=-0.3?'Bajando':'Estable');
+  if(g){
+    if(S.fuente==='demo') $('#dLect').textContent=`${fmtHora(ms)}`;
+    else $('#dLect').textContent=`${fmtHora(ms)}, hace ${fmt0((Date.now()-ms)/60000)} min`;
+  } else $('#dLect').textContent='Sin datos';
+
+  // cronómetro hasta el próximo nivel
+  let sig=0; UMBRALES.forEach(u=>{ if(n>=u) sig++; });
+  const prog=$('#arcProg'), cT=$('#cronT'), cL=$('#cronL');
+  if(!g){ cT.textContent='Sin datos'; cL.textContent=''; prog.setAttribute('stroke-dasharray','0 100'); $('#cronTitulo').textContent='Próximo nivel'; }
+  else if(sig>=4){
+    $('#cronTitulo').textContent='Nivel máximo de la escala';
+    cT.textContent='60 cm o más'; cL.textContent='evacuación recomendada';
+    prog.setAttribute('stroke-dasharray','100 100'); prog.style.stroke='var(--s4)';
+  } else {
+    const tgt=UMBRALES[sig];
+    $('#cronTitulo').textContent=`Pasando: ${ESTADOS[sig].nombre}. Próximo: ${ESTADOS[sig+1].nombre} (${tgt} cm)`;
+    prog.style.stroke=`var(--s${sig+1})`;
+    if(v>=0.3){
+      const min=(tgt-n)/v;
+      cT.textContent = min<1?'menos de 1 min':`${fmt0(min)} min`;
+      cL.textContent=`hasta ${tgt} cm, estimado`;
+      prog.setAttribute('stroke-dasharray',`${Math.max(4,(1-Math.min(min,30)/30)*100)} 100`);
+    } else {
+      cT.textContent='Estable'; cL.textContent='sin subida'; prog.setAttribute('stroke-dasharray','0 100');
+    }
+  }
+
+  // alarma
+  const noche=esNoche(ms);
+  const efectivo = e>=1 ? (noche?Math.min(e+1,4):e) : 0;
+  if(e>S.lastE) S.silencioHasta=-1;
+  S.lastE=e;
+  const silenciada = S.fuente==='demo' && S.T<S.silencioHasta;
+  let tono = TONOS[efectivo];
+  if(efectivo>0 && silenciada) tono=`Silenciada hasta las ${fmtHora(DEMO_BASE+S.silencioHasta*60000)}`;
+  $('#tonoTxt').textContent = g? tono : 'Silencio';
+  $('#tonoNota').textContent = noche?'Es de noche (22:00 a 07:00): cada nivel suena un escalón más fuerte.':'Es de día: el sonido es el del nivel correspondiente.';
+  $('#btnSilenciar').disabled = !(efectivo>0) || S.fuente!=='demo';
+  $('#btnProbar').disabled = S.fuente!=='demo';
+  $('#btnSilenciar').title = S.fuente!=='demo'?'Con datos reales se manda por TalkBack (todavía no configurado)':'';
+  $('#btnProbar').title = $('#btnSilenciar').title;
+
+  // respuesta de la familia
+  const habil = g && e>=2 && !off;
+  $$('#panelResp [data-resp]').forEach(b=>{
+    b.disabled=!habil || S.fuente!=='demo';
+    b.setAttribute('aria-pressed', g&&g.resp===+b.dataset.resp?'true':'false');
+  });
+  let rt='';
+  if(!g) rt='';
+  else if(!habil) rt = e<2 ? 'Los botones se habilitan desde la alerta (15 cm).' : '';
+  else rt = g.resp?`Registrado: ${RESP_TXT[g.resp].toLowerCase()}.`:'Elegí una opción cuando puedas.';
+  $('#respEstado').textContent=rt;
+  $('#nota911').hidden = !(g&&g.resp>=2);
+  const a=S.asign[5], cm=$('#caminoMsg');
+  if(a&&g&&e>=1){
+    cm.hidden=false;
+    cm.textContent = a.tipo==='camino' ? `Ayuda en camino: ${a.quien}, a cargo de ${a.nombre} ${a.apellido}. Confirmado a las ${fmtHora(a.ms)}.` : `Tu pedido se derivó al 911 a las ${fmtHora(a.ms)}.`;
+  } else cm.hidden=true;
+}
+
+/* ========== gráfico ========== */
+function renderGrafico(){
+  const cont=$('#grafico'); if(!cont) return;
+  const W=Math.max(280,cont.clientWidth||600), H=250, m={l:42,r:14,t:14,b:30};
+  let pts=[], ms0, ms1;
+  if(S.fuente==='demo'){
+    for(let t=0;t<=Math.floor(S.T);t++) pts.push({ms:DEMO_BASE+t*60000,n:nivelZona(5,t)});
+    pts.push({ms:DEMO_BASE+S.T*60000,n:nivelZona(5,S.T)});
+    ms0=DEMO_BASE; ms1=DEMO_BASE+T_MAX*60000;
+  } else if(S.live&&S.live.serie.length){
+    pts=S.live.serie.map(p=>({ms:p.ms,n:p.nivel}));
+    ms0=pts[0].ms; ms1=Math.max(pts[pts.length-1].ms,ms0+3600e3);
+  } else { cont.innerHTML='<p class="sub" style="color:var(--muted)">Todavía no hay lecturas para graficar.</p>'; return; }
+  const yMax=Math.max(80,Math.ceil((Math.max(...pts.map(p=>p.n))+5)/10)*10);
+  const sx=ms=>m.l+(ms-ms0)/(ms1-ms0)*(W-m.l-m.r), sy=n=>H-m.b-(n/yMax)*(H-m.t-m.b);
+  const cls=['s1','s2','s3','s4'];
+  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico del nivel del agua en el tiempo">`;
+  s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${sy(0)}" y2="${sy(0)}" stroke="var(--line)" stroke-width="1.5"/>`;
+  UMBRALES.forEach((u,i)=>{
+    s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${sy(u)}" y2="${sy(u)}" stroke="var(--${cls[i]})" stroke-width="2" stroke-dasharray="6 5"/>`;
+    s+=`<text x="${m.l-8}" y="${sy(u)+4.5}" text-anchor="end" font-size="14" font-weight="700" fill="var(--ink)">${u}</text>`;
+  });
+  s+=`<text x="${m.l-8}" y="${sy(0)+4.5}" text-anchor="end" font-size="14" fill="var(--muted)">0</text>`;
+  const nt=Math.max(2,Math.min(7,Math.floor((W-m.l-m.r)/95)));
+  for(let i=0;i<=nt;i++){
+    const ms=ms0+(ms1-ms0)*i/nt, x=sx(ms);
+    s+=`<line x1="${x}" x2="${x}" y1="${sy(0)}" y2="${sy(0)+5}" stroke="var(--muted)"/>`;
+    s+=`<text x="${x}" y="${H-8}" text-anchor="${i===0?'start':(i===nt?'end':'middle')}" font-size="13" fill="var(--muted)">${fmtHora(ms)}</text>`;
+  }
+  if(pts.length){
+    const d=pts.map((p,i)=>`${i?'L':'M'}${sx(p.ms).toFixed(1)} ${sy(p.n).toFixed(1)}`).join(' ');
+    const last=pts[pts.length-1];
+    s+=`<path d="${d} L${sx(last.ms).toFixed(1)} ${sy(0)} L${sx(pts[0].ms).toFixed(1)} ${sy(0)} Z" fill="var(--agua)" opacity=".18"/>`;
+    s+=`<path d="${d}" fill="none" stroke="var(--agua)" stroke-width="3" stroke-linejoin="round"/>`;
+    const lx=sx(last.ms), ly=sy(last.n), g=getZona(5), v=g?g.vel:0;
+    s+=`<circle cx="${lx}" cy="${ly}" r="6" fill="var(--ink)" stroke="var(--surf)" stroke-width="2"/>`;
+    const txt=`${fmt1(last.n)} cm, ${(v>=0?'+':'')+fmt1(v)} cm/min`;
+    const left = lx>W-190;
+    s+=`<text x="${left?lx-12:lx+12}" y="${Math.max(m.t+12,ly-10)}" text-anchor="${left?'end':'start'}" font-size="14" font-weight="700" fill="var(--ink)">${txt}</text>`;
+  }
+  s+='</svg>';
+  cont.innerHTML=s;
+}
+
+/* ========== operador: mapa, ranking, detalle, registro ========== */
+const flagSvg=(tipo)=>`<svg class="flag ${tipo==='e'?'flag-e':'flag-a'}" viewBox="0 0 16 16" aria-hidden="true"><path class="p" d="M3 14V2"/><path class="f" d="M3.8 2.4h9l-2.3 3 2.3 3h-9z"/></svg>`;
+
+function renderMapa(){
+  const m=S.modoMapa==='max';
+  $('#mapa').innerHTML=ZIDS.map(z=>{
+    const g=getZona(z);
+    const e = m? maxEstado(z) : (g?g.estado:null);
+    const nd = (e===null);
+    const resp = g?g.resp:0;
+    const badge = resp>=3?`<span class="badge">${flagSvg('e')}</span>`:(resp===2?`<span class="badge">${flagSvg('a')}</span>`:'');
+    const lab = nd?`Cuadrante ${z}: sin nodo`:`Cuadrante ${z}: ${ESTADOS[e].nombre}${m?' como máximo':''}${resp>=3?', pide evacuar':(resp===2?', pide asistencia':'')}`;
+    return `<button class="celda ${nd?'nd':'s'+e}" data-z="${z}" aria-pressed="${S.sel===z}" aria-label="${lab}"><span class="num">${z}</span>${badge}</button>`;
+  }).join('');
+}
+function renderLeyendaMapa(){
+  const items=[['d0','Seguro'],['d1','Aviso 5 cm'],['d2','Alerta 15 cm'],['d3','Peligro 30 cm'],['d4','Evacuación 60 cm']];
+  $('#mapaLeyenda').innerHTML=items.map(i=>`<span><i class="dot ${i[0]}"></i>${i[1]}</span>`).join('')+
+    `<span>${flagSvg('e').replace('<svg','<svg width="18" height="18"')}Pide evacuar</span><span>${flagSvg('a').replace('<svg','<svg width="18" height="18"')}Pide asistencia</span>`;
+  $('#leyendaGraf').innerHTML=items.map(i=>`<span><i class="dot ${i[0]}"></i>${i[1]}</span>`).join('');
+}
+function rankData(){
+  const out=[];
+  ZIDS.forEach(z=>{
+    const g=getZona(z); if(!g) return;
+    if(g.estado>=1||g.resp>=2){
+      const score=(g.resp===3?1000:(g.resp===2?500:0))+g.estado*10+Math.max(0,g.vel);
+      out.push({z,g,score});
+    }
+  });
+  return out.sort((a,b)=>b.score-a.score).slice(0,8);
+}
+function renderRank(){
+  const list=rankData();
+  if(!list.length){ $('#rank').innerHTML='<li><p class="vacio">Sin novedades: ningún cuadrante tiene agua en el piso.</p></li>'; return; }
+  $('#rank').innerHTML=list.map(({z,g})=>{
+    const a=S.asign[z];
+    const ped=g.resp>=3?`<span class="pedido">${flagSvg('e')}Pide evacuar</span>`:(g.resp===2?`<span class="pedido">${flagSvg('a')}Pide asistencia</span>`:'');
+    const asig=a?`<span class="t2">${a.tipo==='camino'?'Asignado: '+esc(a.quien):'Derivado al 911'}</span>`:'';
+    return `<li><button data-z="${z}" ${S.sel===z?'aria-current="true"':''}>
+      <span class="zn s${g.estado}">${z}</span>
+      <span><span class="t1">${ESTADOS[g.estado].nombre}, ${fmt0(g.nivel)} cm</span><br><span class="t2">${(g.vel>=0?'sube ':'baja ')+fmt1(Math.abs(g.vel))} cm/min. ${RESP_TXT[g.resp]}.</span> ${asig}</span>
+      ${ped}</button></li>`;
+  }).join('');
+}
+function renderDetalle(force){
+  const g=getZona(S.sel);
+  const pedido = g&&g.resp>=2 ? g.resp : 0;
+  const a=S.asign[S.sel];
+  const sig=`${S.sel}|${pedido}|${a?a.tipo+a.ms:''}|${g?1:0}`;
+  if(!force&&sig===S.sigDetalle) return;
+  S.sigDetalle=sig;
+  const box=$('#detalle');
+  if(!g){ box.innerHTML=`<h3>Cuadrante ${S.sel}</h3><p>No hay nodo instalado en este cuadrante.</p>`; return; }
+  let h=`<h3>Cuadrante ${S.sel}: ${ESTADOS[g.estado].nombre}</h3><p class="num">${fmt1(g.nivel)} cm, ${g.vel>=0?'sube':'baja'} ${fmt1(Math.abs(g.vel))} cm/min. ${RESP_TXT[g.resp]}.</p>`;
+  if(a){
+    h+=`<p class="ok-box">${a.tipo==='camino'?`Ayuda confirmada a las ${fmtHora(a.ms)}: ${esc(a.quien)}, a cargo de ${esc(a.nombre)} ${esc(a.apellido)}. Se avisó al aparato de la casa y a Telegram (demo).`:`Derivado al 911 a las ${fmtHora(a.ms)}.`}</p>`;
+  } else if(pedido){
+    h+=`<form id="formAyuda" novalidate>
+      <label>Nombre<input name="nombre" autocomplete="off"></label>
+      <label>Apellido<input name="apellido" autocomplete="off"></label>
+      <label class="full">Quién va<select name="quien"><option value="">Elegí una opción</option><option>Cuadrilla municipal</option><option>Defensa Civil</option><option>Bomberos</option></select></label>
+      <div class="acciones full"><button class="btn ok" type="submit">Confirmar: ayuda en camino</button><button class="btn" type="button" id="btnDerivar">Derivar al 911</button></div>
+      <p class="err full" id="errForm" role="alert"></p></form>`;
+  } else {
+    h+=`<p style="color:var(--muted)">Sin pedidos de este cuadrante. Cuando una familia pida asistencia o evacuar, acá vas a confirmar quién va.</p>`;
+  }
+  box.innerHTML=h;
+}
+function eventos(){
+  const ev=[];
+  if(S.fuente==='demo'){
+    ZIDS.forEach(z=>{
+      reach[z].forEach((t,i)=>{ if(t!==null&&t<=S.T) ev.push({ms:DEMO_BASE+t*60000,z,tipo:'nivel',lvl:i+1,texto:`Alcanzó ${UMBRALES[i]} cm`,aviso:AVISOS[i]}); });
+      if(z!==5&&tResp[z]!==undefined&&S.T>=tResp[z]){
+        const r=RESP_SIM[z]; ev.push({ms:DEMO_BASE+tResp[z]*60000,z,tipo:'pedido',texto:r.tipo===3?'Pide evacuar':(r.tipo===2?'Pide asistencia':'Dice que está bien'),aviso:r.tipo>=2?'Delegado y operador':'Familia',oculto:r.tipo<2});
+      }
+    });
+    if(S.userResp>=2) ev.push({ms:S.userRespMs,z:5,tipo:'pedido',texto:S.userResp===3?'Pide evacuar':'Pide asistencia',aviso:'Delegado y operador'});
+  } else if(S.live){
+    UMBRALES.forEach((u,i)=>{ const p=S.live.serie.find(x=>x.nivel>=u); if(p) ev.push({ms:p.ms,z:5,tipo:'nivel',lvl:i+1,texto:`Alcanzó ${u} cm`,aviso:AVISOS[i]}); });
+  }
+  Object.keys(S.asign).forEach(z=>{ const a=S.asign[z];
+    ev.push({ms:a.ms,z:+z,tipo:'ayuda',texto:a.tipo==='camino'?`Ayuda en camino: ${a.quien}`:'Derivado al 911',aviso:'Familia y Telegram'}); });
+  return ev.filter(e=>!e.oculto).sort((a,b)=>b.ms-a.ms);
+}
+function renderChips(){
+  const opts=[['todos','Todos'],['1','5 cm'],['2','15 cm'],['3','30 cm'],['4','60 cm'],['pedidos','Pedidos y ayuda']];
+  $('#chips').innerHTML=opts.map(o=>`<button class="chip" data-f="${o[0]}" aria-pressed="${S.filtro===o[0]}">${o[1]}</button>`).join('');
+}
+function renderRegistro(){
+  let ev=eventos();
+  if(S.filtro==='pedidos') ev=ev.filter(e=>e.tipo!=='nivel');
+  else if(S.filtro!=='todos') ev=ev.filter(e=>e.tipo==='nivel'&&String(e.lvl)===S.filtro);
+  const body=$('#regBody');
+  if(!ev.length){ body.innerHTML='<tr><td colspan="4" style="color:var(--muted)">Todavía no hay eventos con este filtro.</td></tr>'; return; }
+  body.innerHTML=ev.slice(0,120).map(e=>{
+    const pill = e.tipo==='nivel'?`<span class="pill s${e.lvl}">${ESTADOS[e.lvl].nombre}</span> `:(e.tipo==='pedido'?'<span class="pill pedido">Pedido</span> ':'<span class="pill ayuda">Ayuda</span> ');
+    return `<tr><td class="hora num">${fmtHora(e.ms)}</td><td class="num">${e.z}</td><td>${pill}${esc(e.texto)}</td><td>${esc(e.aviso)}</td></tr>`;
+  }).join('');
+}
+
+/* ========== loop principal ========== */
+let lastKey='';
+function renderAll(force){
+  renderCasa();
+  if(S.vista==='casa') renderGrafico();
+  else { renderMapa(); renderRank(); renderDetalle(force); renderRegistro(); }
+}
+function tick(){
+  const key=[Math.floor(S.T*4),S.vista,S.fuente,S.offline,S.modoMapa,S.sel,S.filtro,S.userResp,Object.keys(S.asign).length,S.silencioHasta].join('|');
+  if(key!==lastKey){ lastKey=key; renderAll(false); }
+  $('#scrub').value=Math.floor(S.T);
+  $('#scrubOut').textContent=fmtHora(DEMO_BASE+S.T*60000);
+}
+let lastT=performance.now();
+function loop(now){
+  const dt=Math.min(.25,(now-lastT)/1000); lastT=now;
+  if(S.play&&S.fuente==='demo'){
+    S.T=Math.min(T_MAX,S.T+dt*S.speed);
+    if(S.T>=T_MAX){ S.play=false; updPlay(); }
+  }
+  tick(); requestAnimationFrame(loop);
+}
+
+/* ========== datos reales (ThingSpeak) ========== */
+let liveTimer=null;
+async function cargarLive(){
+  const url=`https://api.thingspeak.com/channels/${CONFIG.channelId}/feeds.json?results=${CONFIG.results}`+(CONFIG.readKey?`&api_key=${CONFIG.readKey}`:'');
+  try{
+    const r=await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json(); const feeds=j.feeds||[];
+    const serie=feeds.map(f=>({ms:Date.parse(f.created_at),nivel:+f.field1||0,vel:+f.field3||0,estado:+f.field4||0,resp:+f.field5||0})).filter(p=>!isNaN(p.ms));
+    if(!serie.length){ S.live=null; $('#srcMsg').textContent='El canal todavía no tiene lecturas.'; }
+    else { S.live=Object.assign({serie},serie[serie.length-1]); $('#srcMsg').textContent=`Leyendo el canal ${CONFIG.channelId}. Solo el cuadrante 5 tiene nodo real.`; }
+  }catch(err){
+    S.live=null;
+    $('#srcMsg').textContent='No se pudo leer el canal. Si es privado, pegá la Read API Key en CONFIG.readKey o hacelo público desde la pestaña Sharing de ThingSpeak.';
+  }
+  lastKey=''; tick();
+}
+function setFuente(f){
+  S.fuente=f; clearInterval(liveTimer);
+  const demo=f==='demo';
+  ['btnPlay','scrub','speed','offline'].forEach(id=>{ $('#'+id).disabled=!demo; });
+  if(demo){ $('#srcMsg').textContent=''; S.live=null; }
+  else { $('#srcMsg').textContent='Cargando datos del canal...'; cargarLive(); liveTimer=setInterval(cargarLive,20000); }
+  lastKey=''; S.sigDetalle=''; tick();
+}
+
+/* ========== interacción ========== */
+let toastT;
+function toast(t){ const el=$('#toast'); el.textContent=t; el.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>{el.hidden=true;},3800); }
+function updPlay(){ $('#btnPlay').textContent=S.play?'Pausar':(S.T>=T_MAX?'Reiniciar':'Reanudar'); }
+function setVista(v){
+  S.vista=v;
+  $('#vistaCasa').hidden=v!=='casa'; $('#vistaOper').hidden=v!=='oper';
+  $('#tabCasa').setAttribute('aria-selected',v==='casa'); $('#tabOper').setAttribute('aria-selected',v==='oper');
+  S.sigDetalle=''; lastKey=''; tick();
+}
+function beep(nivel){
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    const ctx=new AC(), o=ctx.createOscillator(), gn=ctx.createGain();
+    o.type='square'; o.connect(gn); gn.connect(ctx.destination); gn.gain.value=.05;
+    const pat={1:[500,500],2:[800,800],3:[600,1000],4:[1000,1800]}[nivel]||[800,800];
+    const t0=ctx.currentTime; for(let i=0;i<20;i++) o.frequency.setValueAtTime(pat[i%2],t0+i*.12);
+    o.start(t0); o.stop(t0+2.4); o.onended=()=>ctx.close();
+  }catch(e){}
+}
+
+function init(){
+  buildCasa(); renderLeyendaMapa(); renderChips();
+  $('#tabCasa').onclick=()=>setVista('casa');
+  $('#tabOper').onclick=()=>setVista('oper');
+  $('#btnPlay').onclick=()=>{ if(S.T>=T_MAX){ S.T=0; S.userResp=0; S.asign={}; S.silencioHasta=-1; S.play=true; } else S.play=!S.play; updPlay(); };
+  $('#scrub').oninput=e=>{ S.T=+e.target.value; if(S.T<T_MAX&&!S.play) updPlay(); };
+  $('#speed').onchange=e=>{ S.speed=+e.target.value; };
+  $('#offline').onchange=e=>{ S.offline=e.target.checked; lastKey=''; tick(); };
+  $('#fuente').onchange=e=>setFuente(e.target.value);
+  $('#btnTema').onclick=()=>{
+    const root=document.documentElement;
+    const dark = root.dataset.theme==='dark' || (root.dataset.theme!=='light' && matchMedia('(prefers-color-scheme: dark)').matches);
+    root.dataset.theme = dark?'light':'dark';
+    $('#btnTema').textContent = dark?'Modo oscuro':'Modo claro';
+    $('#btnTema').setAttribute('aria-pressed',String(!dark));
+    renderGrafico();
+  };
+  if(matchMedia('(prefers-color-scheme: dark)').matches){ $('#btnTema').textContent='Modo claro'; $('#btnTema').setAttribute('aria-pressed','true'); }
+
+  $('#btnSilenciar').onclick=()=>{ S.silencioHasta=S.T+10; toast('Alarma silenciada por 10 minutos. Si el agua sube, vuelve a sonar.'); lastKey=''; tick(); };
+  $('#btnProbar').onclick=()=>{ beep(4); toast('Prueba: así suena la sirena rápida de evacuación.'); };
+  $$('#panelResp [data-resp]').forEach(b=>b.onclick=()=>{
+    const g=getZona(5); if(!g||g.estado<2) return;
+    S.userResp=+b.dataset.resp; S.userRespMs=nowMs(); lastKey=''; S.sigDetalle=''; tick();
+    toast(S.userResp>=2?'Pedido registrado. Llamá también al 911.':'Registrado: la familia está bien.');
+  });
+  $('#modoAhora').onclick=()=>{ S.modoMapa='ahora'; $('#modoAhora').setAttribute('aria-pressed','true'); $('#modoMax').setAttribute('aria-pressed','false'); };
+  $('#modoMax').onclick=()=>{ S.modoMapa='max'; $('#modoMax').setAttribute('aria-pressed','true'); $('#modoAhora').setAttribute('aria-pressed','false'); };
+  $('#mapa').onclick=e=>{ const b=e.target.closest('[data-z]'); if(b){ S.sel=+b.dataset.z; S.sigDetalle=''; lastKey=''; tick(); } };
+  $('#rank').onclick=e=>{ const b=e.target.closest('[data-z]'); if(b){ S.sel=+b.dataset.z; S.sigDetalle=''; lastKey=''; tick(); } };
+  $('#chips').onclick=e=>{ const b=e.target.closest('[data-f]'); if(b){ S.filtro=b.dataset.f; renderChips(); lastKey=''; tick(); } };
+  $('#detalle').addEventListener('submit',e=>{
+    e.preventDefault();
+    const f=e.target, nombre=f.nombre.value.trim(), apellido=f.apellido.value.trim(), quien=f.quien.value;
+    if(!nombre||!apellido||!quien){ $('#errForm').textContent='Completá nombre, apellido y quién va antes de confirmar.'; return; }
+    S.asign[S.sel]={tipo:'camino',nombre,apellido,quien,ms:nowMs()};
+    toast('Ayuda confirmada. Se avisó al aparato de la casa y a Telegram (demo).'); lastKey=''; S.sigDetalle=''; tick();
+  });
+  $('#detalle').addEventListener('click',e=>{
+    if(e.target.id==='btnDerivar'){ S.asign[S.sel]={tipo:'derivado',quien:'911',ms:nowMs()}; toast('Pedido derivado al 911 y anotado en el registro.'); lastKey=''; S.sigDetalle=''; tick(); }
+  });
+  new ResizeObserver(()=>{ if(S.vista==='casa') renderGrafico(); }).observe($('#grafico'));
+
+  const q=new URLSearchParams(location.search);
+  if(q.has('t')) S.T=Math.max(0,Math.min(T_MAX,+q.get('t')||0));
+  if(q.get('play')==='0') S.play=false;
+  if(q.get('vista')==='operador') setVista('oper');
+  if(q.get('sel')) S.sel=+q.get('sel')||5;
+  if(q.get('tema')) { document.documentElement.dataset.theme=q.get('tema'); }
+  updPlay(); requestAnimationFrame(loop);
+}
+init();
+})();
+</script>
+</body>
+</html>
