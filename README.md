@@ -57,7 +57,7 @@ Canal `3533124`. Campos:
 
 ## Enlaces
 
-- Web: _(completar con el enlace de GitHub Pages)_
+- Web: _(https://luis-fernando-dagon.github.io/GUARDIAN-INUNDACION/)_
 - Canal de ThingSpeak: _(completar cuando el canal sea público)_
 
 ## Limitaciones
