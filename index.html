@@ -283,6 +283,7 @@ td.hora{white-space:nowrap}
       </label>
     </div>
     <p class="msg" id="srcMsg" role="status"></p>
+    <p class="msg" id="cuenta" hidden><strong id="cuentaN">20</strong> s para la próxima actualización <span id="cuentaBarra" style="display:inline-block;vertical-align:middle;width:120px;height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-left:8px"><span id="cuentaRelleno" style="display:block;height:100%;width:0;background:var(--agua)"></span></span></p>
   </div>
 </section>
 
@@ -369,6 +370,13 @@ td.hora{white-space:nowrap}
             <button class="btn" id="btnSilenciar">Silenciar alarma</button>
             <button class="btn" id="btnProbar">Probar alarma</button>
           </div>
+          <details class="tb-cfg" id="tbCfg">
+            <summary>Control remoto de la placa (TalkBack)</summary>
+            <p style="font-size:.85rem;color:var(--muted);margin:6px 0">Con datos reales, los botones mandan la orden a la placa por ThingSpeak TalkBack. La placa la recibe en 15 a 30 segundos. La clave se guarda solo en este navegador, nunca en el sitio.</p>
+            <label style="display:block;font-size:.85rem">TalkBack ID <input id="tbId" inputmode="numeric" autocomplete="off" style="width:100%;padding:6px"></label>
+            <label style="display:block;font-size:.85rem;margin-top:6px">TalkBack API Key <input id="tbKey" type="password" autocomplete="off" style="width:100%;padding:6px"></label>
+            <div class="btns" style="margin-top:8px"><button class="btn" id="tbGuardar" type="button">Guardar</button> <span id="tbEstado" style="font-size:.85rem;color:var(--muted)"></span></div>
+          </details>
         </div>
       </div>
     </div>
@@ -452,7 +460,18 @@ td.hora{white-space:nowrap}
 'use strict';
 
 /* ========== configuración ========== */
-const CONFIG = { channelId:'3533124', readKey:'', results:80 };
+const CONFIG = { channelId:'3533124', readKey:'', results:180 };
+/* control remoto: el ID y la clave del TalkBack se guardan solo en el navegador (localStorage) */
+const TB = { get id(){ try{return localStorage.getItem('tbId')||'';}catch(e){return '';} }, get key(){ try{return localStorage.getItem('tbKey')||'';}catch(e){return '';} },
+  ok(){ return !!(this.id && this.key); } };
+async function mandarComando(cmd){
+  if(!TB.ok()){ toast('Primero guardá el TalkBack ID y la API Key en "Control remoto".'); $('#tbCfg').open=true; return; }
+  try{
+    await fetch(`https://api.thingspeak.com/talkbacks/${encodeURIComponent(TB.id)}/commands`,{method:'POST',mode:'no-cors',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`api_key=${encodeURIComponent(TB.key)}&command_string=${encodeURIComponent(cmd)}`});
+    toast(`Orden "${cmd}" enviada. La placa la recibe en 15 a 30 segundos.`);
+  }catch(e){ toast('No se pudo enviar la orden. Revisá la conexión.'); }
+}
 const UMBRALES = [5,15,30,60];                   // aviso, alerta, peligro, evacuación (cm)
 const SUBIDA_RAPIDA = 3.0;                       // cm/min: sube un escalón
 const SC = 4, FLOOR = 450;                        // escala del dibujo: 4 px por cm
@@ -627,10 +646,11 @@ function renderCasa(){
   if(efectivo>0 && silenciada) tono=`Silenciada hasta las ${fmtHora(DEMO_BASE+S.silencioHasta*60000)}`;
   $('#tonoTxt').textContent = g? tono : 'Silencio';
   $('#tonoNota').textContent = noche?'Es de noche (22:00 a 07:00): cada nivel suena un escalón más fuerte.':'Es de día: el sonido es el del nivel correspondiente.';
-  $('#btnSilenciar').disabled = !(efectivo>0) || S.fuente!=='demo';
-  $('#btnProbar').disabled = S.fuente!=='demo';
-  $('#btnSilenciar').title = S.fuente!=='demo'?'Con datos reales se manda por TalkBack (todavía no configurado)':'';
-  $('#btnProbar').title = $('#btnSilenciar').title;
+  const real = S.fuente!=='demo';
+  $('#btnSilenciar').disabled = real ? !TB.ok() : !(efectivo>0);
+  $('#btnProbar').disabled = real ? !TB.ok() : false;
+  $('#btnSilenciar').title = real ? (TB.ok()?'Manda SILENCIAR a la placa (tarda 15 a 30 s)':'Configurá el TalkBack en "Control remoto"') : '';
+  $('#btnProbar').title = real ? (TB.ok()?'Hace sonar la alarma de la placa 5 s':'Configurá el TalkBack en "Control remoto"') : '';
 
   // respuesta de la familia
   const habil = g && e>=2 && !off;
@@ -821,8 +841,15 @@ function loop(now){
 }
 
 /* ========== datos reales (ThingSpeak) ========== */
-let liveTimer=null;
+let liveTimer=null, cuentaTimer=null, liveProx=0;
+const LIVE_CADA_MS=20000;
+function pintarCuenta(){
+  const falta=Math.max(0,Math.ceil((liveProx-Date.now())/1000));
+  $('#cuentaN').textContent=falta;
+  $('#cuentaRelleno').style.width=Math.min(100,Math.max(0,100-(falta/(LIVE_CADA_MS/1000))*100))+'%';
+}
 async function cargarLive(){
+  liveProx=Date.now()+LIVE_CADA_MS;
   const url=`https://api.thingspeak.com/channels/${CONFIG.channelId}/feeds.json?results=${CONFIG.results}`+(CONFIG.readKey?`&api_key=${CONFIG.readKey}`:'');
   try{
     const r=await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status);
@@ -837,11 +864,12 @@ async function cargarLive(){
   lastKey=''; tick();
 }
 function setFuente(f){
-  S.fuente=f; clearInterval(liveTimer);
+  S.fuente=f; clearInterval(liveTimer); clearInterval(cuentaTimer);
   const demo=f==='demo';
   ['btnPlay','scrub','speed','offline'].forEach(id=>{ $('#'+id).disabled=!demo; });
+  $('#cuenta').hidden=demo;
   if(demo){ $('#srcMsg').textContent=''; S.live=null; }
-  else { $('#srcMsg').textContent='Cargando datos del canal...'; cargarLive(); liveTimer=setInterval(cargarLive,20000); }
+  else { $('#srcMsg').textContent='Cargando datos del canal...'; cargarLive(); liveTimer=setInterval(cargarLive,LIVE_CADA_MS); pintarCuenta(); cuentaTimer=setInterval(pintarCuenta,500); }
   lastKey=''; S.sigDetalle=''; tick();
 }
 
@@ -875,6 +903,9 @@ function init(){
   $('#speed').onchange=e=>{ S.speed=+e.target.value; };
   $('#offline').onchange=e=>{ S.offline=e.target.checked; lastKey=''; tick(); };
   $('#fuente').onchange=e=>setFuente(e.target.value);
+  $('#tbId').value=TB.id; $('#tbEstado').textContent=TB.ok()?'Guardado en este navegador':'';
+  $('#tbGuardar').onclick=()=>{ try{ localStorage.setItem('tbId',$('#tbId').value.trim()); localStorage.setItem('tbKey',$('#tbKey').value.trim()); }catch(e){ toast('Este navegador no deja guardar la clave.'); return; }
+    $('#tbKey').value=''; $('#tbEstado').textContent=TB.ok()?'Guardado en este navegador':'Faltan datos'; lastKey=''; tick(); };
   $('#btnTema').onclick=()=>{
     const root=document.documentElement;
     const dark = root.dataset.theme==='dark' || (root.dataset.theme!=='light' && matchMedia('(prefers-color-scheme: dark)').matches);
@@ -885,8 +916,8 @@ function init(){
   };
   if(matchMedia('(prefers-color-scheme: dark)').matches){ $('#btnTema').textContent='Modo claro'; $('#btnTema').setAttribute('aria-pressed','true'); }
 
-  $('#btnSilenciar').onclick=()=>{ S.silencioHasta=S.T+10; toast('Alarma silenciada por 10 minutos. Si el agua sube, vuelve a sonar.'); lastKey=''; tick(); };
-  $('#btnProbar').onclick=()=>{ beep(4); toast('Prueba: así suena la sirena rápida de evacuación.'); };
+  $('#btnSilenciar').onclick=()=>{ if(S.fuente!=='demo'){ mandarComando('SILENCIAR'); return; } S.silencioHasta=S.T+10; toast('Alarma silenciada por 10 minutos. Si el agua sube, vuelve a sonar.'); lastKey=''; tick(); };
+  $('#btnProbar').onclick=()=>{ if(S.fuente!=='demo'){ mandarComando('PROBAR'); return; } beep(4); toast('Prueba: así suena la sirena rápida de evacuación.'); };
   $$('#panelResp [data-resp]').forEach(b=>b.onclick=()=>{
     const g=getZona(5); if(!g||g.estado<2) return;
     S.userResp=+b.dataset.resp; S.userRespMs=nowMs(); lastKey=''; S.sigDetalle=''; tick();
