@@ -854,7 +854,7 @@ async function cargarLive(){
   try{
     const r=await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status);
     const j=await r.json(); const feeds=j.feeds||[];
-    const serie=feeds.map(f=>({ms:Date.parse(f.created_at),nivel:+f.field1||0,vel:+f.field3||0,estado:+f.field4||0,resp:+f.field5||0})).filter(p=>!isNaN(p.ms));
+    const serie=feeds.map(f=>({ms:Date.parse(f.created_at),nivel:+f.field1||0,vel:+f.field3||0,estado:Math.max(+f.field4||0,estadoDe(+f.field1||0,+f.field3||0)),resp:+f.field5||0})).filter(p=>!isNaN(p.ms));
     if(!serie.length){ S.live=null; $('#srcMsg').textContent='El canal todavía no tiene lecturas.'; }
     else { S.live=Object.assign({serie},serie[serie.length-1]); $('#srcMsg').textContent=`Leyendo el canal ${CONFIG.channelId}. Solo el cuadrante 5 tiene nodo real.`; }
   }catch(err){
